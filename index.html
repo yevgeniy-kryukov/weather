@@ -8,71 +8,108 @@
 <body>
 
 <div class="container">
-	<h1>My Weather Helper</h1>
-	<div><label for="autocomplete">Введите и укажите город: </label><input id="autocomplete"></div><br>
-	<div id="titulAccuWeather">Прогноз погоды на 5 дней от сервиса AccuWeather</div><br>
-	<div id="resultAccuWeather"></div>
+    <h1>My Weather Helper</h1>
+    <div><label for="autocomplete">Введите и укажите город: </label><input id="autocomplete"></div><br>
+    <div id="resultAccuWeather" style="display: none">
+        <div id="titulAccuWeather">Прогноз погоды на 5 дней от сервиса AccuWeather</div><br>
+        <table border="1" cellpadding="5" style="border-collapse: collapse">
+            <thead style="text-align: center">
+                <tr>
+                    <td>Дата</td>
+                    <td colspan="2">День</td>
+                    <td colspan="2">Ночь</td>
+                </tr>
+            </thead>
+            <tbody id="tbResultAccuWeather">
+            </tbody>
+        </table>
+    </div>
  </div>
  
  <script src="//code.jquery.com/jquery-1.12.4.js"></script>
  <script src="//code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
  <script>
-	$(document).ready(function() {
-	
-		function displayDate(sec) {
-			var curdate = new Date(null);
-			curdate.setTime(sec * 1000);
-			return curdate.toLocaleDateString();
-		}
-	
-		$("#titulAccuWeather").hide();
-		
-		$( "#autocomplete" ).autocomplete({
-			source: function( request, response ) {
-					$.get(
-						'accu/helper_search_city.php', 
-						{ q: request.term }, 
-						function(data) { 
-							var data_filter = [];
-							for(var i = 0; i < data.length; i++) {
-								data_filter[i] = {label: data[i].LocalizedName, value: data[i].Key};
-							}
-							response(data_filter); 
-						}, 
-						'json'
-					);
-				}
-		});
-		
-		$( "#autocomplete" ).on( "autocompleteselect", 
-			function( event, ui ) {
-				$.get(
-					'accu/helper.php',
-					{ codecity: ui.item.value },
-					function(data) {
-						$("#titulAccuWeather").show();
-						$("#resultAccuWeather").html('');
-						for(var i = 0; i < data.DailyForecasts.length; i++) {
-							$("#resultAccuWeather").html(
-											$("#resultAccuWeather").html()
-											+ '<div>' 
-											+ displayDate(data.DailyForecasts[i].EpochDate) 
-											+ ': ' + data.DailyForecasts[i].Temperature.Maximum.Value 
-											+ ' ' + data.DailyForecasts[i].Temperature.Maximum.Unit 
-											+ '</div>'
-										);
-						}
-					},
-					'json'
-				);		
-				$( "#autocomplete" ).val(ui.item.label);
-				return false;				
-			} 
-		);
+    $(document).ready(function() {
+        // Удаляет строки таблицы - tb
+        function clearTb(tb) {
+            while(tb.rows.length>0) tb.removeChild(tb.rows[0]);
+        }
+
+        // Возвращает дату в локальном формате, созданную по кол-ву секунд с полуночи (00:00:00 UTC) 1 января 1970  - sec
+        function displayEpochDate(sec) {
+            var curdate = new Date(null);
+            curdate.setTime(sec * 1000);
+            return curdate.toLocaleDateString();
+        }
+
+        // Создаёт строки таблицы - tb по данным - data (массив объектов)
+        function tableFill(tb, data) {
+           for (var i = 0; i < data.DailyForecasts.length; i++) {
+                var tr = document.createElement('TR');
+                tb.appendChild(tr);
+
+                var td = document.createElement('TD');
+                td.innerHTML = displayEpochDate(data.DailyForecasts[i].EpochDate);
+                tr.appendChild(td);
+
+                td = document.createElement('TD');
+                td.innerHTML = data.DailyForecasts[i].Temperature.Maximum.Value + ' ' + data.DailyForecasts[i].Temperature.Maximum.Unit;
+                tr.appendChild(td);
+
+                td = document.createElement('TD');
+                td.innerHTML = data.DailyForecasts[i].Day.IconPhrase;
+                tr.appendChild(td);
+
+                td = document.createElement('TD');
+                td.innerHTML = data.DailyForecasts[i].Temperature.Minimum.Value + ' ' + data.DailyForecasts[i].Temperature.Minimum.Unit;
+                tr.appendChild(td);
+
+                td = document.createElement('TD');
+                td.innerHTML = data.DailyForecasts[i].Night.IconPhrase;
+                tr.appendChild(td);
+           }
+        }
+        
+        // Делаем из текстового поля с id = autocomplete, поле с автозаполнением.
+        // Привязываем плагин jQueryUI Autocomplete к текстовому полю с id = autocomplete.
+        $( "#autocomplete" ).autocomplete({
+            source: function( request, response ) {
+                    $.get(
+                        'accu/helper_search_city.php', 
+                        { q: request.term }, 
+                        function(data) { 
+                            var data_filter = [];
+                            for (var i = 0; i < data.length; i++) {
+                                data_filter[i] = { label: data[i].LocalizedName, value: data[i].Key };
+                            }
+                            response(data_filter); 
+                        }, 
+                        'json'
+                    );
+                }
+        });
+        
+        $( "#autocomplete" ).on( "autocompleteselect", 
+            function( event, ui ) {
+                $.get(
+                    'accu/helper.php',
+                    { codecity: ui.item.value },
+                    function(data) {
+                        $("#resultAccuWeather").show();
+                        var tb = document.getElementById('tbResultAccuWeather');
+                        clearTb(tb);
+                        tableFill(tb, data);
+                    },
+                    'json'
+                );		
+                $( "#autocomplete" ).val(ui.item.label);
+                return false;				
+            } 
+        );
 
 
-		
-	});
+        
+    });
 </script>
 </body>
 </html>
